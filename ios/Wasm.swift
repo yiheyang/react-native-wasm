@@ -6,7 +6,7 @@ var wasm = {};
 var promise = {};
 
 function instantiate (id, bytes) {
-  promise[id] = window.module({
+  promise[id] = window.Module({
     instantiateWasm: function (info, successCallback) {
       WebAssembly.instantiate(Uint8Array.from(bytes), info).
         then(function (res) {
@@ -72,7 +72,7 @@ class Wasm: NSObject, WKScriptMessageHandler {
 
         DispatchQueue.main.async {
             self.webView.evaluateJavaScript("""
-            (function () { window.module = \(initScripts) })();
+            (function () { window.Module = \(initScripts) })();
             """
             ) { (value, error) in
                 if error != nil {

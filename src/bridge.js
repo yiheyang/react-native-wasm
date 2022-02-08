@@ -3,7 +3,7 @@ var wasm = {};
 var promise = {};
 
 function instantiate (id, bytes) {
-  promise[id] = window.module({
+  promise[id] = window.Module({
     instantiateWasm: function (info, successCallback) {
       WebAssembly.instantiate(Uint8Array.from(bytes), info).
         then(function (res) {
@@ -27,7 +27,7 @@ var wasm = {};
 var promise = {};
 
 function instantiate (id, bytes) {
-  promise[id] = window.module({
+  promise[id] = window.Module({
     instantiateWasm: function (info, successCallback) {
       WebAssembly.instantiate(Uint8Array.from(bytes), info).
         then(function (res) {

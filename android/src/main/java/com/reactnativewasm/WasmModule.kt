@@ -17,7 +17,7 @@ var wasm = {};
 var promise = {};
 
 function instantiate (id, bytes) {
-  promise[id] = window.module({
+  promise[id] = window.Module({
     instantiateWasm: function (info, successCallback) {
       WebAssembly.instantiate(Uint8Array.from(bytes), info).
         then(function (res) {
@@ -71,7 +71,7 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
             @RequiresApi(Build.VERSION_CODES.KITKAT)
             override fun run() {
                 webView.evaluateJavascript("""
-                    javascript:(function () { window.module = $initScripts })();
+                    javascript:(function () { window.Module = $initScripts })();
                     """, ValueCallback<String> { value ->
                     {
                         if (value == null) {
