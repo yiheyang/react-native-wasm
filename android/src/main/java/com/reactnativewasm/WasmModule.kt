@@ -103,7 +103,7 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
             @RequiresApi(Build.VERSION_CODES.KITKAT)
             override fun run() {
                 webView.evaluateJavascript("""
-                    javascript:JSON.stringify(android.returnSync("$id", wasm["$id"].$name(...JSON.parse(`$args`))));
+                    javascript:android.returnSync("$id", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))));
                     """, ValueCallback<String> { value ->
                     {
                         // NOP
