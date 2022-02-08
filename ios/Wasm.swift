@@ -6,7 +6,7 @@ var wasm = {};
 var promise = {};
 
 function instantiate (id, bytes) {
-  promise[id] = window.Module({
+  promise[id] = self.Module({
     instantiateWasm: function (info, successCallback) {
       WebAssembly.instantiate(Uint8Array.from(bytes), info).
         then(function (res) {
@@ -71,10 +71,7 @@ class Wasm: NSObject, WKScriptMessageHandler {
         asyncPool.updateValue(Promise(resolve: resolve, reject: reject), forKey: modId as String)
 
         DispatchQueue.main.async {
-            self.webView.evaluateJavaScript("""
-            (function () { window.Module = \(initScripts) })();
-            """
-            ) { (value, error) in
+            self.webView.evaluateJavaScript(initScripts) { (value, error) in
                 if error != nil {
                     self.asyncPool.removeValue(forKey: modId as String)
                     reject("error", "\(error)", nil)
