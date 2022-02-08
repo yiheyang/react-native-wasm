@@ -71,7 +71,7 @@ class Wasm: NSObject, WKScriptMessageHandler {
         asyncPool.updateValue(Promise(resolve: resolve, reject: reject), forKey: modId as String)
 
         DispatchQueue.main.async {
-            self.webView.evaluateJavaScript(initScripts) { (value, error) in
+            self.webView.evaluateJavaScript(initScripts as String) { (value, error) in
                 if error != nil {
                     self.asyncPool.removeValue(forKey: modId as String)
                     reject("error", "\(error)", nil)
