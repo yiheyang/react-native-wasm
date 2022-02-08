@@ -5,7 +5,7 @@ const { Wasm } = NativeModules;
 class WasmInstance {
   constructor(id, keys) {
     JSON.parse(keys).map(k => {
-      this[key] = (...args) => Wasm.callSync(id, k, JSON.stringify(args));
+      this[k] = (...args) => Wasm.callSync(id, k, JSON.stringify(args));
     });
   }
 }

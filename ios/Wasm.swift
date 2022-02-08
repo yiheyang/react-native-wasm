@@ -2,26 +2,29 @@ import Foundation
 import WebKit
 
 let js: String = """
-var wasm = {}
-var promise = {}
+var wasm = {};
+var promise = {};
+
 function instantiate (id, bytes) {
-  promise[id] = module({
-    instantiateWasm: (info, successCallback) => {
-      WebAssembly.instantiate(bytes, info).then((res) => {
-        successCallback(res.instance)
-      })
+  promise[id] = window.module({
+    instantiateWasm: function (info, successCallback) {
+      WebAssembly.instantiate(Uint8Array.from(bytes), info).
+        then(function (res) {
+          successCallback(res.instance);
+          return res;
+        });
     }
-  }).
-    then((instance) => {
-      delete promise[id]
-      wasm[id] = instance
-      android.resolve(id, JSON.stringify(Object.keys(instance)))
-    }).
-    catch(function (e) {
-      delete promise[id]
-      android.reject(id, e.toString())
-    })
-  return true
+  }).then(function (res) {
+    delete promise[id];
+    wasm[id] = res;
+    window.webkit.messageHandlers.resolve.postMessage(JSON.stringify(
+      { id: id, data: JSON.stringify(Object.keys(res)) }));
+  }).catch(function (e) {
+    delete promise[id];
+    window.webkit.messageHandlers.reject.postMessage(
+      JSON.stringify({ id: id, data: e.toString() }));
+  });
+  return true;
 }
 """
 
@@ -69,7 +72,7 @@ class Wasm: NSObject, WKScriptMessageHandler {
 
         DispatchQueue.main.async {
             self.webView.evaluateJavaScript("""
-            (function(){var module = \(initScripts)})();
+            (function () { window.module = \(initScripts);})();
             """
             ) { (value, error) in
                 if error != nil {
