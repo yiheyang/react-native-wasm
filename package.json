@@ -1,5 +1,5 @@
 {
-  "name": "react-native-wasm",
+  "name": "@yiheyang/react-native-wasm",
   "title": "React Native Wasm",
   "version": "0.1.3",
   "description": "A polyfill to use WebAssembly in React Native.",
@@ -24,7 +24,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/inokawa/react-native-wasm.git"
+    "url": "git+https://github.com/yiheyang/react-native-wasm.git"
   },
   "keywords": [
     "react",
@@ -38,7 +38,7 @@
   "author": "inokawa <stratoooo-taster@yahoo.co.jp> (https://github.com/inokawa/)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/inokawa/react-native-wasm/issues"
+    "url": "https://github.com/yiheyang/react-native-wasm/issues"
   },
-  "homepage": "https://github.com/inokawa/react-native-wasm#readme"
+  "homepage": "https://github.com/yiheyang/react-native-wasm#readme"
 }

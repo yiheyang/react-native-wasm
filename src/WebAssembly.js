@@ -3,15 +3,10 @@ import { NativeModules } from "react-native";
 const { Wasm } = NativeModules;
 
 class WasmInstance {
-  _exports;
   constructor(id, keys) {
-    this._exports = JSON.parse(keys).reduce((acc, k) => {
-      acc[k] = (...args) => Wasm.callSync(id, k, JSON.stringify(args));
-      return acc;
-    }, {});
-  }
-  get exports() {
-    return this._exports;
+    JSON.parse(keys).map(k => {
+      this[key] = (...args) => Wasm.callSync(id, k, JSON.stringify(args));
+    });
   }
 }
 
@@ -22,11 +17,11 @@ const generateId = () => {
   );
 };
 
-const instantiate = (buffer) =>
+const instantiate = (initScripts, buffer) =>
   new Promise((resolve, reject) => {
     const id = generateId();
 
-    Wasm.instantiate(id, buffer.toString())
+    Wasm.instantiate(id, initScripts, buffer.toString())
       .then((keys) => {
         if (!keys) {
           reject("failed to get exports");
@@ -45,20 +40,7 @@ const instantiate = (buffer) =>
   });
 
 export const WebAssembly = {
-  instantiate: (buffer, importObject) => {
-    return instantiate(buffer);
+  initModule: (initScripts, buffer) => {
+    return instantiate(initScripts, buffer);
   },
-  // Do not support because `FileReader.readAsArrayBuffer` is not supported by React Native currently.
-  // instantiateStreaming: (response, importObject) =>
-  //   Promise.resolve(response.arrayBuffer()).then((bytes) =>
-  //     instantiate(bytes)
-  //   ),
-  compile: (bytes) => {},
-  // Do not support because `FileReader.readAsArrayBuffer` is not supported by React Native currently.
-  // compileStreaming: () => {},
-  validate: () => true,
-  Instance: () => {},
-  Module: () => {},
-  Memory: () => {},
-  Table: () => {},
 };

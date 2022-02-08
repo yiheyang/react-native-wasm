@@ -13,19 +13,27 @@ import kotlin.collections.HashMap
 
 
 const val js: String = """
-var wasm = {};
-var promise = {};
-function instantiate(id, bytes){
-  promise[id] = WebAssembly.instantiate(Uint8Array.from(bytes))
-    .then(function(res){
-      delete promise[id];
-      wasm[id] = res;
-      android.resolve(id, JSON.stringify(Object.keys(res.instance.exports)));
-    }).catch(function(e){
-      delete promise[id];
-      android.reject(id, e.toString());
-    });
-  return true;
+var wasm = {}
+var promise = {}
+function instantiate (id, initScripts, bytes) {
+  var module = eval(initScripts)
+  promise[id] = module({
+    instantiateWasm: (info, successCallback) => {
+      WebAssembly.instantiate(bytes, info).then((res) => {
+        successCallback(res.instance)
+      })
+    }
+  }).
+    then((instance) => {
+      delete promise[id]
+      wasm[id] = instance
+      android.resolve(id, JSON.stringify(Object.keys(instance)))
+    }).
+    catch(function (e) {
+      delete promise[id]
+      android.reject(id, e.toString())
+    })
+  return true
 }
 """
 
@@ -56,14 +64,14 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
     }
 
     @ReactMethod
-    fun instantiate(id: String, bytes: String, promise: Promise) {
+    fun instantiate(id: String, initScripts: String, bytes: String, promise: Promise) {
         asyncPool[id] = promise
 
         Handler(Looper.getMainLooper()).post(object : Runnable {
             @RequiresApi(Build.VERSION_CODES.KITKAT)
             override fun run() {
                 webView.evaluateJavascript("""
-                    javascript:instantiate("$id", [$bytes]);
+                    javascript:instantiate("$id",`$initScripts`, [$bytes]);
                     """, ValueCallback<String> { value ->
                     {
                         if (value == null) {
@@ -85,7 +93,7 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
             @RequiresApi(Build.VERSION_CODES.KITKAT)
             override fun run() {
                 webView.evaluateJavascript("""
-                    javascript:android.returnSync("$id", wasm["$id"].instance.exports.$name(...$args));
+                    javascript:android.returnSync("$id", wasm["$id"].$name(...$args));
                     """, ValueCallback<String> { value ->
                     {
                         // NOP
