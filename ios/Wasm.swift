@@ -94,19 +94,19 @@ class Wasm: NSObject, WKScriptMessageHandler {
     }
 
     @objc @discardableResult
-    func callSync(_ modId: NSString, funcName name: NSString, arguments args: NSString) -> NSNumber {
-        var result: NSNumber = 0
+    func callSync(_ modId: NSString, funcName name: NSString, arguments args: NSString) -> NSString {
+        var result: NSString = ""
         let semaphore = DispatchSemaphore(value: 0)
         DispatchQueue.main.async {
             self.webView.evaluateJavaScript("""
-            wasm["\(modId)"].\(name)(...\(args));
+            JSON.stringify(wasm["\(modId)"].\(name)(...JSON.parse(`\(args)`)));
             """
             ) { (value, error) in
                 // TODO handle error
                 if value == nil {
-                    result = 0
+                    result = ""
                 } else {
-                    result = value as! NSNumber
+                    result = value as! NSString
                 }
                 semaphore.signal()
             }

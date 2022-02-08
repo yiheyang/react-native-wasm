@@ -43,7 +43,7 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
     lateinit var webView: WebView;
     val asyncPool = HashMap<String, Promise>()
     val syncPool = HashMap<String, CountDownLatch>()
-    val syncResults = HashMap<String, Double>()
+    val syncResults = HashMap<String, String>()
 
     init {
         val self = this;
@@ -95,7 +95,7 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
     }
 
     @ReactMethod(isBlockingSynchronousMethod = true)
-    fun callSync(id: String, name: String, args: String): Double {
+    fun callSync(id: String, name: String, args: String): String {
         val latch = CountDownLatch(1)
         syncPool[id] = latch
 
@@ -103,7 +103,7 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
             @RequiresApi(Build.VERSION_CODES.KITKAT)
             override fun run() {
                 webView.evaluateJavascript("""
-                    javascript:android.returnSync("$id", wasm["$id"].$name(...$args));
+                    javascript:JSON.stringify(android.returnSync("$id", wasm["$id"].$name(...JSON.parse(`$args`))));
                     """, ValueCallback<String> { value ->
                     {
                         // NOP
@@ -115,14 +115,14 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
         latch.await()
         val result = syncResults[id]
         syncResults.remove(id)
-        return result ?: 0.0
+        return result ?: ""
     }
 
-    protected class JSHandler internal constructor(ctx: WasmModule, asyncPool: HashMap<String, Promise>, syncPool: HashMap<String, CountDownLatch>, syncResults: HashMap<String, Double>) {
+    protected class JSHandler internal constructor(ctx: WasmModule, asyncPool: HashMap<String, Promise>, syncPool: HashMap<String, CountDownLatch>, syncResults: HashMap<String, String>) {
         val ctx: WasmModule = ctx
         val asyncPool: HashMap<String, Promise> = asyncPool
         val syncPool: HashMap<String, CountDownLatch> = syncPool
-        val syncResults: HashMap<String, Double> = syncResults
+        val syncResults: HashMap<String, String> = syncResults
 
         @JavascriptInterface
         fun resolve(id: String, data: String) {
@@ -143,7 +143,7 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
         }
 
         @JavascriptInterface
-        fun returnSync(id: String, data: Double) {
+        fun returnSync(id: String, data: String) {
             val l = syncPool[id]
             if (l != null) {
                 syncPool.remove(id)
