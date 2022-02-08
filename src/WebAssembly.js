@@ -26,12 +26,7 @@ const instantiate = (initScripts, buffer) =>
         if (!keys) {
           reject("failed to get exports");
         } else {
-          resolve({
-            instance: new WasmInstance(id, keys),
-            module: {
-              // TODO
-            },
-          });
+          resolve(new WasmInstance(id, keys));
         }
       })
       .catch((e) => {
