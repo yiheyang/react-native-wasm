@@ -71,7 +71,17 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
             @RequiresApi(Build.VERSION_CODES.KITKAT)
             override fun run() {
                 webView.evaluateJavascript("""
-                    javascript:instantiate("$id",`$initScripts`, [$bytes]);
+                    javascript:(function(){var module = $initScripts})();
+                    """, ValueCallback<String> { value ->
+                    {
+                        if (value == null) {
+                            asyncPool.remove(id)
+                            promise.reject("failed to instantiate")
+                        }
+                    }
+                })
+                webView.evaluateJavascript("""
+                    javascript:instantiate("$id", [$bytes]);
                     """, ValueCallback<String> { value ->
                     {
                         if (value == null) {

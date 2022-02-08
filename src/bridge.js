@@ -1,7 +1,6 @@
 var wasm = {}
 var promise = {}
-function instantiate (id, initScripts, bytes) {
-  var module = eval(initScripts)
+function instantiate (id, bytes) {
   promise[id] = module({
     instantiateWasm: (info, successCallback) => {
       WebAssembly.instantiate(bytes, info).then((res) => {

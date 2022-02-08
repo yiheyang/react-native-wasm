@@ -4,8 +4,7 @@ import WebKit
 let js: String = """
 var wasm = {}
 var promise = {}
-function instantiate (id, initScripts, bytes) {
-  var module = eval(initScripts)
+function instantiate (id, bytes) {
   promise[id] = module({
     instantiateWasm: (info, successCallback) => {
       WebAssembly.instantiate(bytes, info).then((res) => {
@@ -70,7 +69,17 @@ class Wasm: NSObject, WKScriptMessageHandler {
 
         DispatchQueue.main.async {
             self.webView.evaluateJavaScript("""
-            instantiate("\(modId)", `\(initScripts)`, [\(bytes)]);
+            (function(){var module = \(initScripts)})();
+            """
+            ) { (value, error) in
+                if error != nil {
+                    self.asyncPool.removeValue(forKey: modId as String)
+                    reject("error", "\(error)", nil)
+                }
+            }
+
+            self.webView.evaluateJavaScript("""
+            instantiate("\(modId)", [\(bytes)]);
             """
             ) { (value, error) in
                 if error != nil {
