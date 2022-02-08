@@ -72,7 +72,7 @@ class Wasm: NSObject, WKScriptMessageHandler {
 
         DispatchQueue.main.async {
             self.webView.evaluateJavaScript("""
-            (function () { window.module = \(initScripts);})();
+            (function () { window.module = \(initScripts) })();
             """
             ) { (value, error) in
                 if error != nil {

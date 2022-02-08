@@ -71,7 +71,7 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
             @RequiresApi(Build.VERSION_CODES.KITKAT)
             override fun run() {
                 webView.evaluateJavascript("""
-                    javascript:(function () { window.module = $initScripts;})();
+                    javascript:(function () { window.module = $initScripts })();
                     """, ValueCallback<String> { value ->
                     {
                         if (value == null) {
