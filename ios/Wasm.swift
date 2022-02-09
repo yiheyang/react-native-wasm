@@ -90,6 +90,32 @@ class Wasm: NSObject, WKScriptMessageHandler {
         }
     }
 
+    @objc
+    func call(_ modId: NSString, funcName name: NSString, arguments args: NSString, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
+        asyncPool.updateValue(Promise(resolve: resolve, reject: reject), forKey: modId as String)
+        var result: NSString = ""
+
+        DispatchQueue.main.async {
+            self.webView.evaluateJavaScript("""
+            JSON.stringify(wasm["\(modId)"].\(name)(...JSON.parse(`\(args)`)));
+            """
+            ) { (value, error) in
+                if error != nil {
+                    self.asyncPool.removeValue(forKey: modId as String)
+                    reject("error", "\(error)", nil)
+                } else {
+                  if value == nil {
+                      result = ""
+                  } else {
+                      result = value as! NSString
+                  }
+                  self.asyncPool.removeValue(forKey: modId as String)
+                  resolve(result)
+                }
+            }
+        }
+    }
+
     @objc @discardableResult
     func callSync(_ modId: NSString, funcName name: NSString, arguments args: NSString) -> NSString {
         var result: NSString = ""

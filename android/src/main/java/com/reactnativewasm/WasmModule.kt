@@ -92,6 +92,27 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
         });
     }
 
+    @ReactMethod
+    fun call(id: String, name: String, args: String, promise: Promise) {
+        asyncPool[id] = promise
+
+        Handler(Looper.getMainLooper()).post(object : Runnable {
+            @RequiresApi(Build.VERSION_CODES.KITKAT)
+            override fun run() {
+                webView.evaluateJavascript("""
+                    javascript:android.resolve("$id", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))));
+                    """, ValueCallback<String> { value ->
+                    {
+                        if (value == null) {
+                            asyncPool.remove(id)
+                            promise.reject("failed to call $name")
+                        }
+                    }
+                })
+            }
+        });
+    }
+
     @ReactMethod(isBlockingSynchronousMethod = true)
     fun callSync(id: String, name: String, args: String): String {
         val latch = CountDownLatch(1)

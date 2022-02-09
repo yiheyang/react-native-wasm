@@ -1,11 +1,19 @@
-import { NativeModules } from "react-native";
+import { NativeModules } from 'react-native';
 
 const { Wasm } = NativeModules;
 
 class WasmInstance {
-  constructor(id, keys) {
+  constructor (id, keys) {
     JSON.parse(keys).map(k => {
-      this[k] = (...args) => JSON.parse(Wasm.callSync(id, k, JSON.stringify(args)));
+      this[k] = (...args) => {
+        return new Promise((resolve, reject) => {
+          Wasm.call(id, k, JSON.stringify(args)).then((result) => {
+            resolve(JSON.parse(result));
+          }).catch(err => {
+            reject(err);
+          });
+        });
+      };
     });
   }
 }
@@ -21,21 +29,19 @@ const instantiate = (initScripts, buffer) =>
   new Promise((resolve, reject) => {
     const id = generateId();
 
-    Wasm.instantiate(id, initScripts, buffer.toString())
-      .then((keys) => {
-        if (!keys) {
-          reject("failed to get exports");
-        } else {
-          resolve(new WasmInstance(id, keys));
-        }
-      })
-      .catch((e) => {
-        reject(e);
-      });
+    Wasm.instantiate(id, initScripts, buffer.toString()).then((keys) => {
+      if (!keys) {
+        reject('failed to get exports');
+      } else {
+        resolve(new WasmInstance(id, keys));
+      }
+    }).catch((e) => {
+      reject(e);
+    });
   });
 
 export const WebAssembly = {
   initModule: (initScripts, buffer) => {
     return instantiate(initScripts, buffer);
-  },
+  }
 };
