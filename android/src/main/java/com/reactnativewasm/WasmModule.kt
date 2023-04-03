@@ -110,11 +110,11 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
                 val script: String
                 if (args == "undefined") {
                     script = """
-                        javascript:android.resolve("$id", JSON.stringify(wasm["$id"].$name()));
+                        javascript:android.resolve("$id", JSON.stringify(wasm["$id"].$name()) || "undefined");
                         """
                 } else {
                     script = """
-                        javascript:android.resolve("$id", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))));
+                        javascript:android.resolve("$id", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))) || "undefined");
                         """
                 }
                 webView.evaluateJavascript(script, ValueCallback<String> { value ->

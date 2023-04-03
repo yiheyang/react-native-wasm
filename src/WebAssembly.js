@@ -7,15 +7,17 @@ class WasmInstance {
     JSON.parse(keys).map(k => {
       this[k] = (...args) => {
         return new Promise((resolve, reject) => {
-          Wasm.call(id, k, JSON.stringify(args)).then((result) => {
-            if (result === 'undefined') {
-              resolve();
-            } else {
-              resolve(JSON.parse(result));
-            }
-          }).catch(err => {
-            reject(err);
-          });
+          Wasm.call(id, k, JSON.stringify(args) || 'undefined').
+            then((result) => {
+              if (result === 'undefined') {
+                resolve();
+              } else {
+                resolve(JSON.parse(result));
+              }
+            }).
+            catch(err => {
+              reject(err);
+            });
         });
       };
     });

@@ -105,11 +105,11 @@ class Wasm: NSObject, WKScriptMessageHandler {
         var script: String
         if args == "undefined" {
             script = """
-            JSON.stringify(wasm["\(modId)"].\(name)());
+            JSON.stringify(wasm["\(modId)"].\(name)()) || "undefined";
             """
         } else {
             script = """
-            JSON.stringify(wasm["\(modId)"].\(name)(...JSON.parse(`\(args)`)));
+            JSON.stringify(wasm["\(modId)"].\(name)(...JSON.parse(`\(args)`))) || "undefined";
             """
         }
 
@@ -138,11 +138,11 @@ class Wasm: NSObject, WKScriptMessageHandler {
         var script: String
         if args == "undefined" {
             script = """
-            JSON.stringify(wasm["\(modId)"].\(name)());
+            JSON.stringify(wasm["\(modId)"].\(name)()) || "undefined";
             """
         } else {
             script = """
-            JSON.stringify(wasm["\(modId)"].\(name)(...JSON.parse(`\(args)`)));
+            JSON.stringify(wasm["\(modId)"].\(name)(...JSON.parse(`\(args)`))) || "undefined";
             """
         }
 
