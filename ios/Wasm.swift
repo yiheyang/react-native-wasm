@@ -6,19 +6,27 @@ var wasm = {};
 var promise = {};
 
 function instantiate (id, bytes) {
-  promise[id] = self.Module({
-    instantiateWasm: function (info, successCallback) {
-      WebAssembly.instantiate(Uint8Array.from(bytes), info).
-        then(function (res) {
-          successCallback(res.instance);
-          return res;
-        });
-    }
-  }).then(function (res) {
+  promise[id] = self.Module(Uint8Array.from(bytes)).then(function (res) {
+    var instanceMap = {};
+    var instanceID = 0;
+    var WASMModule = self.Module;
+    WASMModule.newInstance = function (method, ...callArgs) {
+      var instance = new WASMModule[method](...callArgs);
+      instanceMap[instanceID++] = instance;
+      return instanceID - 1;
+    };
+    WASMModule.freeInstance = function (_id) {
+      instanceMap[_id].free();
+      delete instanceMap[_id];
+    };
+    WASMModule.instanceCall = function (_id, method, ...callArgs) {
+      return instanceMap[_id][method](...callArgs);
+    };
+
     delete promise[id];
-    wasm[id] = res;
+    wasm[id] = WASMModule;
     window.webkit.messageHandlers.resolve.postMessage(JSON.stringify(
-      { id: id, data: JSON.stringify(Object.keys(res)) }));
+      { id: id, data: JSON.stringify(Object.keys(WASMModule)) }));
   }).catch(function (e) {
     delete promise[id];
     window.webkit.messageHandlers.reject.postMessage(
@@ -94,12 +102,19 @@ class Wasm: NSObject, WKScriptMessageHandler {
     func call(_ modId: NSString, funcName name: NSString, arguments args: NSString, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
         asyncPool.updateValue(Promise(resolve: resolve, reject: reject), forKey: modId as String)
         var result: NSString = ""
-
-        DispatchQueue.main.async {
-            self.webView.evaluateJavaScript("""
+        var script: String
+        if args == "undefined" {
+            script = """
+            JSON.stringify(wasm["\(modId)"].\(name)());
+            """
+        } else {
+            script = """
             JSON.stringify(wasm["\(modId)"].\(name)(...JSON.parse(`\(args)`)));
             """
-            ) { (value, error) in
+        }
+
+        DispatchQueue.main.async {
+            self.webView.evaluateJavaScript(script) { (value, error) in
                 if error != nil {
                     self.asyncPool.removeValue(forKey: modId as String)
                     reject("error", "\(error)", nil)
@@ -120,11 +135,19 @@ class Wasm: NSObject, WKScriptMessageHandler {
     func callSync(_ modId: NSString, funcName name: NSString, arguments args: NSString) -> NSString {
         var result: NSString = ""
         let semaphore = DispatchSemaphore(value: 0)
-        DispatchQueue.main.async {
-            self.webView.evaluateJavaScript("""
+        var script: String
+        if args == "undefined" {
+            script = """
+            JSON.stringify(wasm["\(modId)"].\(name)());
+            """
+        } else {
+            script = """
             JSON.stringify(wasm["\(modId)"].\(name)(...JSON.parse(`\(args)`)));
             """
-            ) { (value, error) in
+        }
+
+        DispatchQueue.main.async {
+            self.webView.evaluateJavaScript(script) { (value, error) in
                 // TODO handle error
                 if value == nil {
                     result = ""

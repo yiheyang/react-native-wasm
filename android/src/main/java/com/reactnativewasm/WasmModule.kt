@@ -17,18 +17,26 @@ var wasm = {};
 var promise = {};
 
 function instantiate (id, bytes) {
-  promise[id] = self.Module({
-    instantiateWasm: function (info, successCallback) {
-      WebAssembly.instantiate(Uint8Array.from(bytes), info).
-        then(function (res) {
-          successCallback(res.instance);
-          return res;
-        });
-    }
-  }).then(function (res) {
+  promise[id] = self.Module(Uint8Array.from(bytes)).then(function (res) {
+    var instanceMap = {};
+    var instanceID = 0;
+    var WASMModule = self.Module;
+    WASMModule.newInstance = function (method, ...callArgs) {
+      var instance = new WASMModule[method](...callArgs);
+      instanceMap[instanceID++] = instance;
+      return instanceID - 1;
+    };
+    WASMModule.freeInstance = function (_id) {
+      instanceMap[_id].free();
+      delete instanceMap[_id];
+    };
+    WASMModule.instanceCall = function (_id, method, ...callArgs) {
+      return instanceMap[_id][method](...callArgs);
+    };
+
     delete promise[id];
-    wasm[id] = res;
-    android.resolve(id, JSON.stringify(Object.keys(res)));
+    wasm[id] = WASMModule;
+    android.resolve(id, JSON.stringify(Object.keys(WASMModule)));
   }).catch(function (e) {
     delete promise[id];
     android.reject(id, e.toString());
@@ -99,9 +107,17 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
         Handler(Looper.getMainLooper()).post(object : Runnable {
             @RequiresApi(Build.VERSION_CODES.KITKAT)
             override fun run() {
-                webView.evaluateJavascript("""
-                    javascript:android.resolve("$id", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))));
-                    """, ValueCallback<String> { value ->
+                val script: String
+                if (args == "undefined") {
+                    script = """
+                        javascript:android.resolve("$id", JSON.stringify(wasm["$id"].$name()));
+                        """
+                } else {
+                    script = """
+                        javascript:android.resolve("$id", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))));
+                        """
+                }
+                webView.evaluateJavascript(script, ValueCallback<String> { value ->
                     {
                         if (value == null) {
                             asyncPool.remove(id)
@@ -121,9 +137,17 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
         Handler(context.getMainLooper()).post(object : Runnable {
             @RequiresApi(Build.VERSION_CODES.KITKAT)
             override fun run() {
-                webView.evaluateJavascript("""
-                    javascript:android.returnSync("$id", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))));
-                    """, ValueCallback<String> { value ->
+                val script: String
+                if (args == "undefined") {
+                    script = """
+                        javascript:android.returnSync("$id", JSON.stringify(wasm["$id"].$name()));
+                        """
+                } else {
+                    script = """
+                        javascript:android.returnSync("$id", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))));
+                        """
+                }
+                webView.evaluateJavascript(script, ValueCallback<String> { value ->
                     {
                         // NOP
                     }
