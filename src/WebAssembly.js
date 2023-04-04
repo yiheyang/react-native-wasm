@@ -7,7 +7,8 @@ class WasmInstance {
     JSON.parse(keys).map(k => {
       this[k] = (...args) => {
         return new Promise((resolve, reject) => {
-          Wasm.call(id, k, JSON.stringify(args) || 'undefined').
+          const tid = generateId();
+          Wasm.call(id, tid, k, JSON.stringify(args) || 'undefined').
             then((result) => {
               if (result === 'undefined') {
                 resolve();
@@ -34,8 +35,9 @@ const generateId = () => {
 const instantiate = (initScripts, buffer) =>
   new Promise((resolve, reject) => {
     const id = generateId();
+    const tid = generateId();
 
-    Wasm.instantiate(id, initScripts, buffer.toString()).then((keys) => {
+    Wasm.instantiate(id, tid, initScripts, buffer.toString()).then((keys) => {
       if (!keys) {
         reject('failed to get exports');
       } else {

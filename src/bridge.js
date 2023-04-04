@@ -2,8 +2,8 @@
 var wasm = {};
 var promise = {};
 
-function instantiate (id, bytes) {
-  promise[id] = self.Module(Uint8Array.from(bytes)).then(function (res) {
+function instantiate (id, tid, bytes) {
+  promise[tid] = self.Module(Uint8Array.from(bytes)).then(function (res) {
     var instanceMap = {};
     var instanceID = 0;
     var WASMModule = self.Module;
@@ -20,12 +20,12 @@ function instantiate (id, bytes) {
       return instanceMap[_id][method](...callArgs);
     };
 
-    delete promise[id];
+    delete promise[tid];
     wasm[id] = WASMModule;
-    android.resolve(id, JSON.stringify(Object.keys(WASMModule)));
+    android.resolve(tid, JSON.stringify(Object.keys(WASMModule)));
   }).catch(function (e) {
-    delete promise[id];
-    android.reject(id, e.toString());
+    delete promise[tid];
+    android.reject(tid, e.toString());
   });
   return true;
 }
@@ -34,8 +34,8 @@ function instantiate (id, bytes) {
 var wasm = {};
 var promise = {};
 
-function instantiate (id, bytes) {
-  promise[id] = self.Module(Uint8Array.from(bytes)).then(function (res) {
+function instantiate (id, tid, bytes) {
+  promise[tid] = self.Module(Uint8Array.from(bytes)).then(function (res) {
     var instanceMap = {};
     var instanceID = 0;
     var WASMModule = self.Module;
@@ -52,14 +52,14 @@ function instantiate (id, bytes) {
       return instanceMap[_id][method](...callArgs);
     };
 
-    delete promise[id];
+    delete promise[tid];
     wasm[id] = WASMModule;
     window.webkit.messageHandlers.resolve.postMessage(JSON.stringify(
-      { id: id, data: JSON.stringify(Object.keys(WASMModule)) }));
+      { tid, data: JSON.stringify(Object.keys(WASMModule)) }));
   }).catch(function (e) {
-    delete promise[id];
+    delete promise[tid];
     window.webkit.messageHandlers.reject.postMessage(
-      JSON.stringify({ id: id, data: e.toString() }));
+      JSON.stringify({ tid, data: e.toString() }));
   });
   return true;
 }

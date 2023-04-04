@@ -5,8 +5,8 @@ let js: String = """
 var wasm = {};
 var promise = {};
 
-function instantiate (id, bytes) {
-  promise[id] = self.Module(Uint8Array.from(bytes)).then(function (res) {
+function instantiate (id, tid, bytes) {
+  promise[tid] = self.Module(Uint8Array.from(bytes)).then(function (res) {
     var instanceMap = {};
     var instanceID = 0;
     var WASMModule = self.Module;
@@ -23,14 +23,14 @@ function instantiate (id, bytes) {
       return instanceMap[_id][method](...callArgs);
     };
 
-    delete promise[id];
+    delete promise[tid];
     wasm[id] = WASMModule;
     window.webkit.messageHandlers.resolve.postMessage(JSON.stringify(
-      { id: id, data: JSON.stringify(Object.keys(WASMModule)) }));
+      { tid, data: JSON.stringify(Object.keys(WASMModule)) }));
   }).catch(function (e) {
-    delete promise[id];
+    delete promise[tid];
     window.webkit.messageHandlers.reject.postMessage(
-      JSON.stringify({ id: id, data: e.toString() }));
+      JSON.stringify({ tid, data: e.toString() }));
   });
   return true;
 }
@@ -42,7 +42,7 @@ struct Promise {
 }
 
 struct JsResult: Codable {
-    let id: String
+    let tid: String
     let data: String
 }
 
@@ -75,23 +75,23 @@ class Wasm: NSObject, WKScriptMessageHandler {
     }
 
     @objc
-    func instantiate(_ modId: NSString, initScriptsStr initScripts: NSString, bytesStr bytes: NSString, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
-        asyncPool.updateValue(Promise(resolve: resolve, reject: reject), forKey: modId as String)
+    func instantiate(_ modId: NSString, tid: NSString, initScriptsStr initScripts: NSString, bytesStr bytes: NSString, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
+        asyncPool.updateValue(Promise(resolve: resolve, reject: reject), forKey: tid as String)
 
         DispatchQueue.main.async {
             self.webView.evaluateJavaScript(initScripts as String) { (value, error) in
                 if error != nil {
-                    self.asyncPool.removeValue(forKey: modId as String)
+                    self.asyncPool.removeValue(forKey: tid as String)
                     reject("error", "\(error)", nil)
                 }
             }
 
             self.webView.evaluateJavaScript("""
-            instantiate("\(modId)", [\(bytes)]);
+            instantiate("\(modId)", "\(tid)", [\(bytes)]);
             """
             ) { (value, error) in
                 if error != nil {
-                    self.asyncPool.removeValue(forKey: modId as String)
+                    self.asyncPool.removeValue(forKey: tid as String)
                     reject("error", "\(error)", nil)
                 }
             }
@@ -99,8 +99,8 @@ class Wasm: NSObject, WKScriptMessageHandler {
     }
 
     @objc
-    func call(_ modId: NSString, funcName name: NSString, arguments args: NSString, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
-        asyncPool.updateValue(Promise(resolve: resolve, reject: reject), forKey: modId as String)
+    func call(_ modId: NSString, tid: NSString, funcName name: NSString, arguments args: NSString, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) -> Void {
+        asyncPool.updateValue(Promise(resolve: resolve, reject: reject), forKey: tid as String)
         var result: NSString = ""
         var script: String
         if args == "undefined" {
@@ -116,7 +116,7 @@ class Wasm: NSObject, WKScriptMessageHandler {
         DispatchQueue.main.async {
             self.webView.evaluateJavaScript(script) { (value, error) in
                 if error != nil {
-                    self.asyncPool.removeValue(forKey: modId as String)
+                    self.asyncPool.removeValue(forKey: tid as String)
                     reject("error", "\(error)", nil)
                 } else {
                   if value == nil {
@@ -124,7 +124,7 @@ class Wasm: NSObject, WKScriptMessageHandler {
                   } else {
                       result = value as! NSString
                   }
-                  self.asyncPool.removeValue(forKey: modId as String)
+                  self.asyncPool.removeValue(forKey: tid as String)
                   resolve(result)
                 }
             }
@@ -132,7 +132,7 @@ class Wasm: NSObject, WKScriptMessageHandler {
     }
 
     @objc @discardableResult
-    func callSync(_ modId: NSString, funcName name: NSString, arguments args: NSString) -> NSString {
+    func callSync(_ modId: NSString, tid: NSString, funcName name: NSString, arguments args: NSString) -> NSString {
         var result: NSString = ""
         let semaphore = DispatchSemaphore(value: 0)
         var script: String
@@ -165,19 +165,18 @@ class Wasm: NSObject, WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == "resolve" {
             let json = try! JSONDecoder().decode(JsResult.self, from: (message.body as! String).data(using: .utf8)!)
-            guard let promise = asyncPool[json.id] else {
+            guard let promise = asyncPool[json.tid] else {
                 return
             }
-            asyncPool.removeValue(forKey: json.id)
+            asyncPool.removeValue(forKey: json.tid)
             promise.resolve(json.data)
         } else if message.name == "reject" {
             let json = try! JSONDecoder().decode(JsResult.self, from: (message.body as! String).data(using: .utf8)!)
-            guard let promise = asyncPool[json.id] else {
+            guard let promise = asyncPool[json.tid] else {
                 return
             }
-            asyncPool.removeValue(forKey: json.id)
+            asyncPool.removeValue(forKey: json.tid)
             promise.reject("error", json.data, nil)
         }
     }
 }
-

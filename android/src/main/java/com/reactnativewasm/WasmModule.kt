@@ -16,8 +16,8 @@ const val js: String = """
 var wasm = {};
 var promise = {};
 
-function instantiate (id, bytes) {
-  promise[id] = self.Module(Uint8Array.from(bytes)).then(function (res) {
+function instantiate (id, tid, bytes) {
+  promise[tid] = self.Module(Uint8Array.from(bytes)).then(function (res) {
     var instanceMap = {};
     var instanceID = 0;
     var WASMModule = self.Module;
@@ -34,12 +34,12 @@ function instantiate (id, bytes) {
       return instanceMap[_id][method](...callArgs);
     };
 
-    delete promise[id];
+    delete promise[tid];
     wasm[id] = WASMModule;
-    android.resolve(id, JSON.stringify(Object.keys(WASMModule)));
+    android.resolve(tid, JSON.stringify(Object.keys(WASMModule)));
   }).catch(function (e) {
-    delete promise[id];
-    android.reject(id, e.toString());
+    delete promise[tid];
+    android.reject(tid, e.toString());
   });
   return true;
 }
@@ -72,8 +72,8 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
     }
 
     @ReactMethod
-    fun instantiate(id: String, initScripts: String, bytes: String, promise: Promise) {
-        asyncPool[id] = promise
+    fun instantiate(id: String, tid: String, initScripts: String, bytes: String, promise: Promise) {
+        asyncPool[tid] = promise
 
         Handler(Looper.getMainLooper()).post(object : Runnable {
             @RequiresApi(Build.VERSION_CODES.KITKAT)
@@ -81,17 +81,17 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
                 webView.evaluateJavascript("javascript:" + initScripts, ValueCallback<String> { value ->
                     {
                         if (value == null) {
-                            asyncPool.remove(id)
+                            asyncPool.remove(tid)
                             promise.reject("failed to instantiate")
                         }
                     }
                 })
                 webView.evaluateJavascript("""
-                    javascript:instantiate("$id", [$bytes]);
+                    javascript:instantiate("$id", "$tid", [$bytes]);
                     """, ValueCallback<String> { value ->
                     {
                         if (value == null) {
-                            asyncPool.remove(id)
+                            asyncPool.remove(tid)
                             promise.reject("failed to instantiate")
                         }
                     }
@@ -101,8 +101,8 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
     }
 
     @ReactMethod
-    fun call(id: String, name: String, args: String, promise: Promise) {
-        asyncPool[id] = promise
+    fun call(id: String, tid: String, name: String, args: String, promise: Promise) {
+        asyncPool[tid] = promise
 
         Handler(Looper.getMainLooper()).post(object : Runnable {
             @RequiresApi(Build.VERSION_CODES.KITKAT)
@@ -110,17 +110,17 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
                 val script: String
                 if (args == "undefined") {
                     script = """
-                        javascript:android.resolve("$id", JSON.stringify(wasm["$id"].$name()) || "undefined");
+                        javascript:android.resolve("$tid", JSON.stringify(wasm["$id"].$name()) || "undefined");
                         """
                 } else {
                     script = """
-                        javascript:android.resolve("$id", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))) || "undefined");
+                        javascript:android.resolve("$tid", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))) || "undefined");
                         """
                 }
                 webView.evaluateJavascript(script, ValueCallback<String> { value ->
                     {
                         if (value == null) {
-                            asyncPool.remove(id)
+                            asyncPool.remove(tid)
                             promise.reject("failed to call $name")
                         }
                     }
@@ -130,9 +130,9 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
     }
 
     @ReactMethod(isBlockingSynchronousMethod = true)
-    fun callSync(id: String, name: String, args: String): String {
+    fun callSync(id: String, tid: String, name: String, args: String): String {
         val latch = CountDownLatch(1)
-        syncPool[id] = latch
+        syncPool[tid] = latch
 
         Handler(context.getMainLooper()).post(object : Runnable {
             @RequiresApi(Build.VERSION_CODES.KITKAT)
@@ -140,11 +140,11 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
                 val script: String
                 if (args == "undefined") {
                     script = """
-                        javascript:android.returnSync("$id", JSON.stringify(wasm["$id"].$name()));
+                        javascript:android.returnSync("$tid", JSON.stringify(wasm["$id"].$name()));
                         """
                 } else {
                     script = """
-                        javascript:android.returnSync("$id", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))));
+                        javascript:android.returnSync("$tid", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))));
                         """
                 }
                 webView.evaluateJavascript(script, ValueCallback<String> { value ->
@@ -156,8 +156,8 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
         });
 
         latch.await()
-        val result = syncResults[id]
-        syncResults.remove(id)
+        val result = syncResults[tid]
+        syncResults.remove(tid)
         return result ?: ""
     }
 
@@ -168,29 +168,29 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
         val syncResults: HashMap<String, String> = syncResults
 
         @JavascriptInterface
-        fun resolve(id: String, data: String) {
-            val p = asyncPool[id]
+        fun resolve(tid: String, data: String) {
+            val p = asyncPool[tid]
             if (p != null) {
-                asyncPool.remove(id)
+                asyncPool.remove(tid)
                 p.resolve(data)
             }
         }
 
         @JavascriptInterface
-        fun reject(id: String, data: String) {
-            val p = asyncPool[id]
+        fun reject(tid: String, data: String) {
+            val p = asyncPool[tid]
             if (p != null) {
-                asyncPool.remove(id)
+                asyncPool.remove(tid)
                 p.reject(data)
             }
         }
 
         @JavascriptInterface
-        fun returnSync(id: String, data: String) {
-            val l = syncPool[id]
+        fun returnSync(tid: String, data: String) {
+            val l = syncPool[tid]
             if (l != null) {
-                syncPool.remove(id)
-                syncResults[id] = data
+                syncPool.remove(tid)
+                syncResults[tid] = data
                 l.countDown()
             }
         }
