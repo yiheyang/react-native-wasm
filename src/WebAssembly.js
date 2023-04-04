@@ -8,7 +8,7 @@ class WasmInstance {
       this[k] = (...args) => {
         return new Promise((resolve, reject) => {
           const tid = generateId();
-          Wasm.call(id, tid, k, JSON.stringify(args) || 'undefined').
+          Wasm.call(id, tid, k, JSON.stringify(args).replace(/\\/g,'\\\\') || 'undefined').
             then((result) => {
               if (result === 'undefined') {
                 resolve();

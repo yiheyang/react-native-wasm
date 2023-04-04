@@ -148,11 +148,14 @@ class Wasm: NSObject, WKScriptMessageHandler {
 
         DispatchQueue.main.async {
             self.webView.evaluateJavaScript(script) { (value, error) in
-                // TODO handle error
-                if value == nil {
-                    result = ""
+                if error != nil {
+                    debugPrint("WASM JSBridge Error", "\(error)")
                 } else {
-                    result = value as! NSString
+                    if value == nil {
+                        result = ""
+                    } else {
+                        result = value as! NSString
+                    }
                 }
                 semaphore.signal()
             }

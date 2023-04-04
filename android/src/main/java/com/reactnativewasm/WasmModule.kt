@@ -10,6 +10,8 @@ import androidx.annotation.RequiresApi
 import com.facebook.react.bridge.*
 import java.util.concurrent.CountDownLatch
 import kotlin.collections.HashMap
+import android.util.Log
+
 
 
 const val js: String = """
@@ -110,11 +112,15 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
                 val script: String
                 if (args == "undefined") {
                     script = """
-                        javascript:android.resolve("$tid", JSON.stringify(wasm["$id"].$name()) || "undefined");
+                        javascript:try {
+                          android.resolve("$tid", JSON.stringify(wasm["$id"].$name()) || "undefined")
+                        } catch (e) { android.reject("$tid", e.toString()) };
                         """
                 } else {
                     script = """
-                        javascript:android.resolve("$tid", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))) || "undefined");
+                        javascript:try {
+                          android.resolve("$tid", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))) || "undefined")
+                        } catch (e) { android.reject("$tid", e.toString()) };
                         """
                 }
                 webView.evaluateJavascript(script, ValueCallback<String> { value ->
@@ -140,11 +146,15 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
                 val script: String
                 if (args == "undefined") {
                     script = """
-                        javascript:android.returnSync("$tid", JSON.stringify(wasm["$id"].$name()));
+                        javascript:try {
+                          android.returnSync("$tid", JSON.stringify(wasm["$id"].$name()))
+                        } catch (e) { android.log(e.toString()) };
                         """
                 } else {
                     script = """
-                        javascript:android.returnSync("$tid", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))));
+                        javascript:try {
+                          android.returnSync("$tid", JSON.stringify(wasm["$id"].$name(...JSON.parse(`$args`))))
+                        } catch (e) { android.log(e.toString()) };
                         """
                 }
                 webView.evaluateJavascript(script, ValueCallback<String> { value ->
@@ -168,6 +178,11 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
         val syncResults: HashMap<String, String> = syncResults
 
         @JavascriptInterface
+        fun log(data: String) {
+            Log.d("WASM JSBridge Error", data)
+        }
+
+        @JavascriptInterface
         fun resolve(tid: String, data: String) {
             val p = asyncPool[tid]
             if (p != null) {
@@ -178,6 +193,7 @@ class WasmModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
 
         @JavascriptInterface
         fun reject(tid: String, data: String) {
+            log(data)
             val p = asyncPool[tid]
             if (p != null) {
                 asyncPool.remove(tid)
